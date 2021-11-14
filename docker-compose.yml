@@ -1,6 +1,23 @@
 version: '3.7'
 
 services:
+  #MYSQL
+  mysql:
+    image: mysql:latest
+    container_name: hadoopmysql
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: "local"
+    volumes:
+      - hadoop_mysql:/hadoop/mysql
+      - "./scripts/huesetup.sql:/docker-entrypoint-initdb.d/1.sql"
+      - "./scripts/movielens.sql:/docker-entrypoint-initdb.d/2.sql"
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
+    networks:
+      - hadoop
+
   #HADOOP MASTER
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.1.1-java8
@@ -106,11 +123,15 @@ services:
       - ./hadoop.env
     volumes: 
       - ./overrides/hue/hue-overrides.ini:/usr/share/hue/desktop/conf/hue-overrides.ini
+      - ./overrides/hue/entrypoint.sh:/usr/share/hue/desktop/entrypoint.sh
+      - hadoop_hue:/hadoop/hue
     depends_on:
       - namenode
       - resourcemanager
     networks:
       - hadoop
+    command:
+      - /usr/share/hue/desktop/entrypoint.sh
 
   # HIVE 
   hive-server:
@@ -147,11 +168,111 @@ services:
     networks:
       - hadoop
 
+  hbase:
+    image: bde2020/hbase-standalone:1.0.0-hbase1.2.6
+    container_name: hbase
+    volumes:
+      - ./overrides/hbase-master/entrypoint.sh:/entrypoint.sh
+      - hbase_data:/hbase-data
+      - hbase_zookeeper_data:/zookeeper-data
+    ports:
+      - 16000:16000
+      - 16010:16010
+      - 16020:16020
+      - 16030:16030
+      - 16040:16040
+      - 16050:16050
+      - 16060:16060
+      - 16070:16070
+      - 2888:2888
+      - 3888:3888
+      - 2181:2181
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop
+    command:
+      - /entrypoint.sh
+
+  oozie:
+    image: equemuelcompellon/hadoop-oozie
+    container_name: oozie
+    volumes:
+      - hadoop_oozie:/hadoop_oozie
+      - ./overrides/oozie/entrypoint.sh:/entrypoint.sh
+    ports:
+      - 11000:11000
+      - 11001:11001
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+      FS_DEFAULTFS: "hdfs://namenode:8020"
+    networks:
+      - hadoop
+    command:
+      - /entrypoint.sh
+
+  ## ZOOKEEPER
+  #zoo:
+  #  image: zookeeper:3.4.10
+  #  container_name: zoo
+  #  environment:
+  #    ZOO_MY_ID: 1
+  #    ZOO_SERVERS: server.1=0.0.0.0:2888:3888
+  #  ports:
+  #    - 2181:2181
+  #  networks:
+  #    - hadoop
+
+  ## HBASE
+  #hbase-master:
+  #  image: docker.io/bde2020/hbase-master:1.0.0-hbase2.4.5
+  #  container_name: hbase-master
+  #  hostname: hbase-master
+  #  env_file:
+  #    - ./hadoop.env
+  #  volumes:
+  #    - ./overrides/hbase-master/entrypoint.sh:/entrypoint.sh
+  #    - hadoop_hbase:/hadoop/hbase
+  #  environment:
+  #    SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 zoo:2181"
+  #  ports:
+  #    - 16010:16010
+  #    - 16040:16040
+  #    - 16050:16050
+  #    - 16060:16060
+  #    - 16070:16060
+  #  networks:
+  #    - hadoop
+  #  command:
+  #    - /entrypoint.sh
+#
+  #hbase-region:
+  #  image: docker.io/bde2020/hbase-regionserver:1.0.0-hbase2.4.5
+  #  container_name: hbase-regionserver
+  #  hostname: hbase-regionserver
+  #  env_file:
+  #    - ./hadoop.env
+  #  environment:
+  #    HBASE_CONF_hbase_regionserver_hostname: hbase-region
+  #    SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 zoo:2181 hbase-master:16010"
+  #  ports:
+  #    - 16030:16030
+  #  networks:
+  #    - hadoop
+
 networks:
   hadoop: 
 
 volumes:
+  hadoop_mysql:
   hadoop_namenode:
   hadoop_datanode_1:
   hadoop_datanode_2:
   hadoop_historyserver:
+  hadoop_hue:
+  #hadoop_hbase:
+  hbase_data:
+  hbase_zookeeper_data:
+  hadoop_oozie:

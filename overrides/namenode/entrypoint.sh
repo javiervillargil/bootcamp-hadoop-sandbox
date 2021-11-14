@@ -20,9 +20,9 @@ function configure() {
 
     local var
     local value
-    
+
     echo "Configuring $module"
-    for c in `printenv | perl -sne 'print "$1 " if m/^${envPrefix}_(.+?)=.*/' -- -envPrefix=$envPrefix`; do 
+    for c in `printenv | perl -sne 'print "$1 " if m/^${envPrefix}_(.+?)=.*/' -- -envPrefix=$envPrefix`; do
         name=`echo ${c} | perl -pe 's/___/-/g; s/__/@/g; s/_/./g; s/@/_/g;'`
         var="${envPrefix}_${c}"
         value=${!var}
@@ -68,7 +68,7 @@ if [ -n "$GANGLIA_HOST" ]; then
         echo "$module.period=10"
         echo "$module.servers=$GANGLIA_HOST:8649"
     done > /etc/hadoop/hadoop-metrics.properties
-    
+
     for module in namenode datanode resourcemanager nodemanager mrappmaster jobhistoryserver; do
         echo "$module.sink.ganglia.class=org.apache.hadoop.metrics2.sink.ganglia.GangliaSink31"
         echo "$module.sink.ganglia.period=10"
@@ -98,7 +98,7 @@ function wait_for_it()
         echo "[$i/$max_try] ${service}:${port} is still not available; giving up after ${max_try} tries. :/"
         exit 1
       fi
-      
+
       echo "[$i/$max_try] try in ${retry_seconds}s once again ..."
       let "i++"
       sleep $retry_seconds
@@ -117,7 +117,7 @@ done
 # remove problematic package source
 sed -i '$ d' /etc/apt/sources.list
 
-# create user from env 
+# create user from env
 useradd -s /bin/bash -p $(openssl passwd $ADMIN_PASSWORD) $ADMIN_NAME
 chown -R $ADMIN_NAME /home/$ADMIN_NAME/
 
@@ -127,9 +127,11 @@ if [[ $INSTALL_PYTHON == "true" ]]; then
   echo Y | apt-get install nano python
 fi
 
+apt-get install -y vim mysql-client
+
 # install sqoop
 if [[ $INSTALL_SQOOP == "true" ]]; then
-     
+
   echo "export HADOOP_MAPRED_HOME=/opt/hadoop-3.1.1" >> /root/.bashrc
   echo "export HADOOP_COMMON_HOME=/opt/hadoop-3.1.1" >> /root/.bashrc
   echo "export HADOOP_HDFS_HOME=/opt/hadoop-3.1.1" >> /root/.bashrc
@@ -146,15 +148,14 @@ if [[ $INSTALL_SQOOP == "true" ]]; then
 
   cd /tmp
 
-  curl http://us.mirrors.quenda.co/apache/sqoop/1.4.7/sqoop-1.4.7.bin__hadoop-2.6.0.tar.gz --output sqoop-1.4.7.bin__hadoop-2.6.0.tar.gz
+  curl http://archive.apache.org/dist/sqoop/1.4.7/sqoop-1.4.7.bin__hadoop-2.6.0.tar.gz --output sqoop-1.4.7.bin__hadoop-2.6.0.tar.gz
   tar -xvf sqoop-1.4.7.bin__hadoop-2.6.0.tar.gz
   mv sqoop-1.4.7.bin__hadoop-2.6.0/ /usr/lib/sqoop
   echo "export PATH=$PATH:/usr/lib/sqoop/bin" >> /root/.bashrc
   echo "export PATH=$PATH:/usr/lib/sqoop/bin" >> /home/$ADMIN_NAME/.bashrc
 
-  curl https://downloads.mysql.com/archives/get/file/mysql-connector-java-8.0.16.tar.gz --output mysql-connector-java-8.0.16.tar.gz
-  tar -xvf mysql-connector-java-8.0.16.tar.gz
-  mv mysql-connector-java-8.0.16/mysql-connector-java-8.0.16.jar /usr/lib/sqoop/lib
+  curl https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.16/mysql-connector-java-8.0.16.jar --output mysql-connector-java-8.0.16.jar
+  mv mysql-connector-java-8.0.16.jar /usr/lib/sqoop/lib
 
   curl https://jdbc.postgresql.org/download/postgresql-42.2.6.jar --output postgresql-42.2.6.jar
   mv postgresql-42.2.6.jar /usr/lib/sqoop/lib
@@ -164,7 +165,6 @@ if [[ $INSTALL_SQOOP == "true" ]]; then
   echo "export HADOOP_MAPRED_HOME=/opt/hadoop-3.1.1" >> /usr/lib/sqoop/conf/sqoop-env.sh
 
   rm sqoop-1.4.7.bin__hadoop-2.6.0.tar.gz
-  rm mysql-connector-java-8.0.16.tar.gz
 
 fi
 
