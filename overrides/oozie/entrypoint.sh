@@ -33,5 +33,7 @@ sleep 600
 
 configure /opt/oozie-4.2.0/conf/hadoop-conf/core-site.xml oozie OOZIE_CONF
 
+echo -e "\nexport OOZIE_URL=http://localhost:11000/oozie\n" >> /home/hdfs/.bashrc
+
 /opt/oozie-4.2.0/bin/oozie-setup.sh sharelib create -fs hdfs://namenode:8020
 /opt/oozie-4.2.0/bin/oozied.sh run

@@ -85,7 +85,7 @@ function wait_for_it()
     local service=${serviceport%%:*}
     local port=${serviceport#*:}
     local retry_seconds=5
-    local max_try=100
+    local max_try=200
     let i=1
 
     nc -z $service $port

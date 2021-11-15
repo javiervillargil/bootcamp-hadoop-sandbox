@@ -38,7 +38,7 @@ services:
   resourcemanager:
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.1.1-java8
     container_name: resourcemanager
-    ports: 
+    ports:
       - 8088:8088
     environment:
       SERVICE_PRECONDITION: "namenode:9870 datanode1:9864"
@@ -63,7 +63,7 @@ services:
   nodemanager1:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.1.1-java8
     container_name: nodemanager1
-    volumes: 
+    volumes:
       - ./overrides/nodemanagers/entrypoint.sh:/entrypoint.sh
     environment:
       SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 resourcemanager:8088"
@@ -71,7 +71,7 @@ services:
       - ./hadoop.env
       - .env
     networks:
-      - hadoop    
+      - hadoop
 
   # HADOOP SLAVE 2
   datanode2:
@@ -89,7 +89,7 @@ services:
   nodemanager2:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.1.1-java8
     container_name: nodemanager2
-    volumes: 
+    volumes:
       - ./overrides/nodemanagers/entrypoint.sh:/entrypoint.sh
     environment:
       SERVICE_PRECONDITION: "namenode:9870 datanode2:9864 resourcemanager:8088"
@@ -97,12 +97,12 @@ services:
       - ./hadoop.env
       - .env
     networks:
-      - hadoop    
+      - hadoop
 
   historyserver:
     image: bde2020/hadoop-historyserver:2.0.0-hadoop3.1.1-java8
     container_name: historyserver
-    ports: 
+    ports:
       - 8188:8188
     environment:
       SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 resourcemanager:8088"
@@ -114,14 +114,14 @@ services:
       - hadoop
 
   # HUE
-  filebrowser: 
+  filebrowser:
     container_name: hue
     image: gethue/hue:4.4.0
     ports:
       - "8000:8888"
     env_file:
       - ./hadoop.env
-    volumes: 
+    volumes:
       - ./overrides/hue/hue-overrides.ini:/usr/share/hue/desktop/conf/hue-overrides.ini
       - ./overrides/hue/entrypoint.sh:/usr/share/hue/desktop/entrypoint.sh
       - hadoop_hue:/hadoop/hue
@@ -133,7 +133,7 @@ services:
     command:
       - /usr/share/hue/desktop/entrypoint.sh
 
-  # HIVE 
+  # HIVE
   hive-server:
     image: bde2020/hive:2.3.2-postgresql-metastore
     container_name: hiveserver
@@ -143,7 +143,7 @@ services:
       HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
       SERVICE_PRECONDITION: "hive-metastore:9083"
     networks:
-      - hadoop 
+      - hadoop
 
   hive-metastore:
     container_name: hivemetastore
@@ -165,36 +165,55 @@ services:
   presto-coordinator:
     container_name: presto
     image: shawnzhu/prestodb:0.181
+    volumes:
+      - ./overrides/presto/install-presto-cli.sh:/opt/presto-server-0.181/install-presto-cli.sh
+      - ./overrides/presto/mysql.properties:/opt/presto-server-0.181/etc/catalog/mysql.properties
     networks:
       - hadoop
 
-  hbase:
-    image: bde2020/hbase-standalone:1.0.0-hbase1.2.6
-    container_name: hbase
-    volumes:
-      - ./overrides/hbase-master/entrypoint.sh:/entrypoint.sh
-      - hbase_data:/hbase-data
-      - hbase_zookeeper_data:/zookeeper-data
-    ports:
-      - 16000:16000
-      - 16010:16010
-      - 16020:16020
-      - 16030:16030
-      - 16040:16040
-      - 16050:16050
-      - 16060:16060
-      - 16070:16070
-      - 2888:2888
-      - 3888:3888
-      - 2181:2181
+  zoo:
+    image: zookeeper:3.4.10
+    container_name: zoo
     environment:
-      SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864"
-    env_file:
-      - ./hadoop.env
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888
+    ports:
+      - 2181:2181
+    volumes:
+      - hadoop_zookeeper:/hadoop_zookeeper
     networks:
       - hadoop
-    command:
-      - /entrypoint.sh
+
+  hbase-master:
+    image: bde2020/hbase-master:1.0.0-hbase1.2.6
+    container_name: hbase-master
+    hostname: hbase-master
+    env_file:
+      - ./overrides/hbase-master/hbase.env
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 zoo:2181"
+    ports:
+      - 16010:16010
+    volumes:
+      - hadoop_hbase_master:/hadoop_hbase_master
+    networks:
+      - hadoop
+
+  hbase-region:
+    image: bde2020/hbase-regionserver:1.0.0-hbase1.2.6
+    container_name: hbase-regionserver
+    hostname: hbase-regionserver
+    env_file:
+      - ./overrides/hbase-master/hbase.env
+    environment:
+      HBASE_CONF_hbase_regionserver_hostname: hbase-region
+      SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 zoo:2181 hbase-master:16010"
+    ports:
+      - 16030:16030
+    volumes:
+      - hadoop_hbase_region:/hadoop_hbase_region
+    networks:
+      - hadoop
 
   oozie:
     image: equemuelcompellon/hadoop-oozie
@@ -213,57 +232,8 @@ services:
     command:
       - /entrypoint.sh
 
-  ## ZOOKEEPER
-  #zoo:
-  #  image: zookeeper:3.4.10
-  #  container_name: zoo
-  #  environment:
-  #    ZOO_MY_ID: 1
-  #    ZOO_SERVERS: server.1=0.0.0.0:2888:3888
-  #  ports:
-  #    - 2181:2181
-  #  networks:
-  #    - hadoop
-
-  ## HBASE
-  #hbase-master:
-  #  image: docker.io/bde2020/hbase-master:1.0.0-hbase2.4.5
-  #  container_name: hbase-master
-  #  hostname: hbase-master
-  #  env_file:
-  #    - ./hadoop.env
-  #  volumes:
-  #    - ./overrides/hbase-master/entrypoint.sh:/entrypoint.sh
-  #    - hadoop_hbase:/hadoop/hbase
-  #  environment:
-  #    SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 zoo:2181"
-  #  ports:
-  #    - 16010:16010
-  #    - 16040:16040
-  #    - 16050:16050
-  #    - 16060:16060
-  #    - 16070:16060
-  #  networks:
-  #    - hadoop
-  #  command:
-  #    - /entrypoint.sh
-#
-  #hbase-region:
-  #  image: docker.io/bde2020/hbase-regionserver:1.0.0-hbase2.4.5
-  #  container_name: hbase-regionserver
-  #  hostname: hbase-regionserver
-  #  env_file:
-  #    - ./hadoop.env
-  #  environment:
-  #    HBASE_CONF_hbase_regionserver_hostname: hbase-region
-  #    SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 zoo:2181 hbase-master:16010"
-  #  ports:
-  #    - 16030:16030
-  #  networks:
-  #    - hadoop
-
 networks:
-  hadoop: 
+  hadoop:
 
 volumes:
   hadoop_mysql:
@@ -272,7 +242,7 @@ volumes:
   hadoop_datanode_2:
   hadoop_historyserver:
   hadoop_hue:
-  #hadoop_hbase:
-  hbase_data:
-  hbase_zookeeper_data:
+  hadoop_hbase_master:
+  hadoop_hbase_region:
+  hadoop_zookeeper:
   hadoop_oozie:
