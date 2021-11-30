@@ -221,6 +221,7 @@ services:
     volumes:
       - hadoop_oozie:/hadoop_oozie
       - ./overrides/oozie/entrypoint.sh:/entrypoint.sh
+      - ./overrides/oozie/workflow:/workflow
     ports:
       - 11000:11000
       - 11001:11001

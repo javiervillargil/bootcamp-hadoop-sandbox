@@ -32,6 +32,12 @@ function configure() {
 sleep 600
 
 configure /opt/oozie-4.2.0/conf/hadoop-conf/core-site.xml oozie OOZIE_CONF
+#configure /opt/oozie-4.2.0/conf/hadoop-conf/core-site.xml core CORE_CONF
+configure /opt/oozie-4.2.0/conf/hadoop-conf/hdfs-site.xml hdfs HDFS_CONF
+configure /opt/oozie-4.2.0/conf/hadoop-conf/yarn-site.xml yarn YARN_CONF
+configure /opt/oozie-4.2.0/conf/hadoop-conf/httpfs-site.xml httpfs HTTPFS_CONF
+configure /opt/oozie-4.2.0/conf/hadoop-conf/kms-site.xml kms KMS_CONF
+configure /opt/oozie-4.2.0/conf/hadoop-conf/mapred-site.xml mapred MAPRED_CONF
 
 echo -e "\nexport OOZIE_URL=http://localhost:11000/oozie\n" >> /home/hdfs/.bashrc
 
